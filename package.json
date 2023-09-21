@@ -4,6 +4,7 @@
   "description": "Prueba tecnica gaspre backend",
   "main": "server.js",
   "scripts": {
+    "dev": "nodemon server.js",
     "start": "node server.js",
     "primeFactors": "node primeFactors.js"
   },
@@ -11,11 +12,11 @@
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "express-rate-limit": "^7.0.1",
     "helmet": "^7.0.0",
+    "mariadb": "^3.2.1",
     "morgan": "^1.10.0",
-    "mysql2": "^3.6.1",
     "sequelize": "^6.33.0"
   },
   "devDependencies": {
