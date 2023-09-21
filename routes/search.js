@@ -10,12 +10,15 @@ const { QueryTypes } = require('sequelize');
 router.get('/', async(req, res) => {
     try {
         const { stationId } = req.query;
-        //
-        // sequelize.query(`SET @ref_x = (SELECT location_x FROM stations WHERE cre_id = '${stationId}');`);
-        // sequelize.query(`SET @ref_y = (SELECT location_y FROM stations WHERE cre_id = '${stationId});`);
+
+        const ref = await sequelize.query(`SELECT location_x, location_y FROM stations WHERE cre_id = '${stationId}';`, {
+            type: QueryTypes.SELECT,
+        });
+
+        const { location_x, location_y } = ref[0];
 
         const query = `
-            WITH reference_gas AS (
+            WITH reference_gas as (
                 SELECT
                     s.cre_id,
                     p.value as price,
@@ -23,31 +26,23 @@ router.get('/', async(req, res) => {
                 FROM prueba.stations s
                 JOIN prueba.prices p ON p.cre_id = s.cre_id
                 WHERE s.cre_id = :stationId
-            ),
-            specific_location AS (
-                SELECT location_x, location_y
-                FROM stations
-                WHERE cre_id = :stationId
-                LIMIT 1
             )
-            SELECT
-                s.cre_id,
-                s.name,
-                s.location_x,
-                s.location_y,
-                SQRT(POW(s.location_x - sl.location_x, 2) + POW(s.location_y - sl.location_y, 2)) AS distance,
-                p.value as prices,
-                p.product as product,
-                p.id as price_id,
-                b.name as brand,
-                sb.id as station_brands_id,
-                p.value - rg.price as difference
+            SELECT s.cre_id,
+                   s.name,
+                   s.location_x,
+                   s.location_y,
+                   SQRT(POW(location_x - :location_x , 2) + POW(location_y - :location_y, 2)) AS distance,
+                   p.value as prices,
+                   p.product as product,
+                   p.id as price_id,
+                   b.name as brand,
+                   sb.id as station_brands_id,
+                   round(p.value - rg.price, 2) as price_difference
             FROM stations s
             JOIN prueba.prices p ON p.cre_id = s.cre_id
             JOIN prueba.stations_brands sb ON sb.cre_id = s.cre_id
             JOIN prueba.brands b on b.id = sb.id_brand
             JOIN reference_gas rg ON rg.product = p.product
-            CROSS JOIN specific_location sl
             WHERE s.cre_id != :stationId
             ORDER BY distance
             LIMIT 10000;
@@ -55,7 +50,7 @@ router.get('/', async(req, res) => {
 
         const stations = await sequelize.query(query, {
             type: QueryTypes.SELECT,
-            replacements: { stationId: stationId }
+            replacements: { stationId: stationId, location_x, location_y }
         });
 
 
