@@ -18,8 +18,10 @@ app.use(logger('dev'));
 
 
 //ROUTES
+const searchRoutes = require("./routes/search");
 
 
+app.use('/search', searchRoutes); //Todas las rutas aqui tendran el prefijo /search
 
 
 
