@@ -13,14 +13,20 @@ router.get('/', async(req, res) => {
 
         const query = `
             WITH price_difference AS (
+                -- Se calcula todas las diferencias en precios de todas las estaciones con sus respectivos productos
                 SELECT
                     p.cre_id,
                     p.product,
                     p.value as value,
-                    (p.value - (SELECT value FROM prices WHERE cre_id = :stationId AND product = p.product AND date = (SELECT MAX(date) FROM prices WHERE cre_id = :stationId))) AS 'price_difference'
+                    (
+                        p.value -
+                        -- Obtenemos el precio del producto y de la id de la estacion, el precio debe ser el ultimo registrado
+                        (SELECT value FROM prices WHERE cre_id = 'PL/10001/EXP/ES/2015' AND product = p.product AND date = (SELECT MAX(date) FROM prices WHERE cre_id = 'PL/10001/EXP/ES/2015'))
+                    ) AS 'price_difference'
                 FROM
                     prices p
                 WHERE
+                    -- Obtenemos el ultimo precio o el mas reciente
                     p.date = (SELECT MAX(date) FROM prices WHERE cre_id = p.cre_id)
             )
             SELECT
@@ -30,20 +36,19 @@ router.get('/', async(req, res) => {
                 pd.value AS price_per_product,
                 b.name AS brand,
                 pd.price_difference
-            FROM
-                stations_competitors sc
-            JOIN
-                stations s ON sc.cre_id_competitor = s.cre_id
-            LEFT JOIN
-                price_difference pd ON s.cre_id = pd.cre_id
-            LEFT JOIN
-                stations_brands sb ON s.cre_id = sb.cre_id AND sb.date_report = (SELECT MAX(date_report) FROM stations_brands WHERE cre_id = s.cre_id)
-            LEFT JOIN
-                brands b ON sb.id_brand = b.id
-            WHERE
-                sc.cre_id = :stationId
-            ORDER BY
-                sc.distance;
+            FROM stations_competitors sc
+            -- Para obtener el nombre del competidor
+            JOIN stations s ON sc.cre_id_competitor = s.cre_id
+            -- Obtenemos el producto, su valor y la diferencia del precio en esa estacion (Es un left join ya que puede que algunos productos no los vendan en esa estacion)
+            LEFT JOIN price_difference pd ON s.cre_id = pd.cre_id
+            -- Obtenemos las marcas que venden en esa estacion, y solo obtenemos la marca mas reciente, me imagino que en una estacion se pueden cambiar las marcas.
+            LEFT JOIN stations_brands sb ON s.cre_id = sb.cre_id AND sb.date_report = (SELECT MAX(date_report) FROM stations_brands WHERE cre_id = s.cre_id)
+            -- Obtenemos el nombre de la marca
+            LEFT JOIN brands b ON sb.id_brand = b.id
+            -- Solo seleccionamos las gasolineras que son competidoras de nuestra estacion
+            WHERE sc.cre_id = 'PL/10001/EXP/ES/2015'
+            -- Se ordena ascendentemente la distancia para saber cuales son las gasolineras mas cercanas a la nuestra
+            ORDER BY sc.distance;
         `;
 
         const stations = await sequelize.query(query, {
