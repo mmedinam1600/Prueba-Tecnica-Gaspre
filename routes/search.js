@@ -11,46 +11,44 @@ router.get('/', async(req, res) => {
     try {
         const { stationId } = req.query;
 
-        const ref = await sequelize.query(`SELECT location_x, location_y FROM stations WHERE cre_id = '${stationId}';`, {
-            type: QueryTypes.SELECT,
-        });
-
-        const { location_x, location_y } = ref[0];
-
         const query = `
-            WITH reference_gas as (
+            WITH price_difference AS (
                 SELECT
-                    s.cre_id,
-                    p.value as price,
-                    p.product
-                FROM prueba.stations s
-                JOIN prueba.prices p ON p.cre_id = s.cre_id
-                WHERE s.cre_id = :stationId
+                    p.cre_id,
+                    p.product,
+                    p.value as value,
+                    (p.value - (SELECT value FROM prices WHERE cre_id = :stationId AND product = p.product AND date = (SELECT MAX(date) FROM prices WHERE cre_id = :stationId))) AS 'price_difference'
+                FROM
+                    prices p
+                WHERE
+                    p.date = (SELECT MAX(date) FROM prices WHERE cre_id = p.cre_id)
             )
-            SELECT s.cre_id,
-                   s.name,
-                   s.location_x,
-                   s.location_y,
-                   SQRT(POW(location_x - :location_x , 2) + POW(location_y - :location_y, 2)) AS distance,
-                   p.value as prices,
-                   p.product as product,
-                   p.id as price_id,
-                   b.name as brand,
-                   sb.id as station_brands_id,
-                   round(p.value - rg.price, 2) as price_difference
-            FROM stations s
-            JOIN prueba.prices p ON p.cre_id = s.cre_id
-            JOIN prueba.stations_brands sb ON sb.cre_id = s.cre_id
-            JOIN prueba.brands b on b.id = sb.id_brand
-            JOIN reference_gas rg ON rg.product = p.product
-            WHERE s.cre_id != :stationId
-            ORDER BY distance
-            LIMIT 10000;
+            SELECT
+                s.name AS name,
+                sc.distance AS distance,
+                pd.product AS product,
+                pd.value AS price_per_product,
+                b.name AS brand,
+                pd.price_difference
+            FROM
+                stations_competitors sc
+            JOIN
+                stations s ON sc.cre_id_competitor = s.cre_id
+            LEFT JOIN
+                price_difference pd ON s.cre_id = pd.cre_id
+            LEFT JOIN
+                stations_brands sb ON s.cre_id = sb.cre_id AND sb.date_report = (SELECT MAX(date_report) FROM stations_brands WHERE cre_id = s.cre_id)
+            LEFT JOIN
+                brands b ON sb.id_brand = b.id
+            WHERE
+                sc.cre_id = :stationId
+            ORDER BY
+                sc.distance;
         `;
 
         const stations = await sequelize.query(query, {
             type: QueryTypes.SELECT,
-            replacements: { stationId: stationId, location_x, location_y }
+            replacements: { stationId: stationId }
         });
 
 
