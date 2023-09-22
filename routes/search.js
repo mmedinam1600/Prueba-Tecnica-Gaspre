@@ -21,8 +21,8 @@ router.get('/', async(req, res) => {
                     (
                         p.value -
                         -- Obtenemos el precio del producto y de la id de la estacion, el precio debe ser el ultimo registrado
-                        (SELECT value FROM prices WHERE cre_id = 'PL/10001/EXP/ES/2015' AND product = p.product AND date = (SELECT MAX(date) FROM prices WHERE cre_id = 'PL/10001/EXP/ES/2015'))
-                    ) AS 'price_difference'
+                        (SELECT value FROM prices WHERE cre_id = :stationId AND product = p.product AND date = (SELECT MAX(date) FROM prices WHERE cre_id = :stationId))
+                    ) AS price_difference
                 FROM
                     prices p
                 WHERE
@@ -46,7 +46,7 @@ router.get('/', async(req, res) => {
             -- Obtenemos el nombre de la marca
             LEFT JOIN brands b ON sb.id_brand = b.id
             -- Solo seleccionamos las gasolineras que son competidoras de nuestra estacion
-            WHERE sc.cre_id = 'PL/10001/EXP/ES/2015'
+            WHERE sc.cre_id = :stationId
             -- Se ordena ascendentemente la distancia para saber cuales son las gasolineras mas cercanas a la nuestra
             ORDER BY sc.distance;
         `;
